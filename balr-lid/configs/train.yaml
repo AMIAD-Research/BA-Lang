@@ -1,0 +1,83 @@
+# Root Hydra config. Composes a corpus (`data`), a model architecture
+# (`model@arch`) and a training stage (`recipe`, i.e. head-only or finetune).
+#
+# Typical invocations:
+#   python -m balr_lid.train data=fleurs recipe=head_stage output_dir=exp/fleurs-stage1
+#   python -m balr_lid.train data=fleurs recipe=finetune_stage \
+#       recipe.checkpoint=exp/fleurs-stage1/checkpoints/last.ckpt \
+#       output_dir=exp/fleurs-stage2
+#
+# See docs/recipe.md for what each recipe stage sets, and
+# docs/data_preparation.md for the `data` manifests.
+defaults:
+  - data: fleurs
+  - model@arch: mhfa_balr
+  - recipe: head_stage
+  - _self_
+
+seed: 42
+output_dir: ???
+
+# `_recursive_: false` on both blocks below: LIDDataModule/LanguageIdentificationModel
+# instantiate their `*_dataset`/`train_sampler`/`optimizer`/`scheduler` sub-configs
+# themselves, at the point they have the extra runtime kwargs those need (e.g. a
+# sampler needs `labels`, an optimizer needs `params`) — Hydra's default recursive
+# instantiation would try to build them too early, before those are available.
+datamodule:
+  _target_: balr_lid.data.datamodule.LIDDataModule
+  _recursive_: false
+  train_dataset: ${data.train_dataset}
+  val_dataset: ${data.val_dataset}
+  test_dataset: ${data.test_dataset}
+  train_sampler: ${recipe.train_sampler}
+  val_batch_size: ${data.val_batch_size}
+  num_workers: ${data.num_workers}
+
+model:
+  _target_: balr_lid.models.lid_model.LanguageIdentificationModel
+  _recursive_: false
+  backbone: ${arch.backbone}
+  head: ${arch.head}
+  optimizer: ${recipe.optimizer}
+  scheduler: ${recipe.scheduler}
+  freeze_exclude_patterns: ${recipe.freeze_exclude_patterns}
+  checkpoint: ${recipe.checkpoint}
+
+trainer:
+  _target_: lightning.pytorch.Trainer
+  accelerator: gpu
+  devices: 1
+  num_nodes: 1
+  precision: bf16-mixed
+  max_steps: 300000
+  min_epochs: 1
+  num_sanity_val_steps: 0
+  enable_model_summary: false
+  # BalancedBatchSampler already shards batches across ranks itself.
+  use_distributed_sampler: false
+  default_root_dir: ${output_dir}
+  # Fixed version (rather than Lightning's default auto-incrementing
+  # lightning_logs/version_N) so a resumed run (see train.py's
+  # last.ckpt lookup) keeps logging into the same TensorBoard run
+  # instead of starting a new version directory each time.
+  logger:
+    _target_: lightning.pytorch.loggers.TensorBoardLogger
+    save_dir: ${output_dir}
+    name: ""
+    version: "logs"
+  callbacks:
+    - _target_: balr_lid.data.sampler.SamplerEpochCallback
+    - _target_: lightning.pytorch.callbacks.ModelCheckpoint
+      dirpath: ${output_dir}/checkpoints
+      filename: "best-{epoch:02d}-{val_acc:.4f}"
+      monitor: val_acc
+      mode: max
+      save_top_k: 3
+      save_last: true
+      every_n_epochs: 1
+
+hydra:
+  run:
+    dir: ${output_dir}
+  job:
+    chdir: false

@@ -1,0 +1,42 @@
+audio_root: ??? # directory audio_path values in the manifests are relative to
+manifest_dir: data/manifests
+num_classes: 102
+val_batch_size: 32
+num_workers: 8
+
+# Official FLEURS language list (ISO 639-3 codes), order defines the class index.
+language_list:
+  [
+    afr, amh, ara, asm, ast, aze, bel, ben, bos, bul, cat, ceb, ces, ckb, cmn,
+    cym, dan, deu, ell, eng, est, fas, fil, fin, fra, ful, gle, glg, guj, hau,
+    heb, hin, hrv, hun, hye, ibo, ind, isl, ita, jav, jpn, kam, kan, kat, kaz,
+    kea, khm, kir, kor, lao, lav, lin, lit, ltz, lug, luo, mal, mar, mkd, mlt,
+    mon, mri, msa, mya, nep, nld, nob, nso, nya, oci, ori, orm, pan, pol, por,
+    pus, ron, rus, slk, slv, sna, snd, som, spa, srp, swa, swe, tam, tel, tgk,
+    tha, tur, ukr, umb, urd, uzb, vie, wol, xho, yor, yue, zul,
+  ]
+
+train_dataset:
+  _target_: balr_lid.data.dataset.LanguageIdDataset
+  manifest_csv: ${data.manifest_dir}/fleurs-train.csv
+  audio_root: ${data.audio_root}
+  label_list: ${data.language_list}
+  segment_seconds: 3.0
+  random_crop: true
+  min_duration: 1.0
+
+val_dataset:
+  _target_: balr_lid.data.dataset.LanguageIdDataset
+  manifest_csv: ${data.manifest_dir}/fleurs-dev.csv
+  audio_root: ${data.audio_root}
+  label_list: ${data.language_list}
+  segment_seconds: 15.0
+  random_crop: false
+
+test_dataset:
+  _target_: balr_lid.data.dataset.LanguageIdDataset
+  manifest_csv: ${data.manifest_dir}/fleurs-test.csv
+  audio_root: ${data.audio_root}
+  label_list: ${data.language_list}
+  segment_seconds: 15.0
+  random_crop: false

@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+build/
+dist/
+
+# training outputs / experiment dirs
+exp/
+outputs/
+logs/
+*.ckpt
+
+# data (manifests are user-specific; keep the directory via .gitkeep)
+data/manifests/*.csv
+
+# SLURM logs
+scripts/**/logs/

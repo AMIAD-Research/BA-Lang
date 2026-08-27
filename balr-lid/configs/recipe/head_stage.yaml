@@ -1,0 +1,23 @@
+# Stage 1: train the classification head only, backbone frozen.
+
+optimizer:
+  _target_: torch.optim.Adam
+  lr: 1.0e-5
+  betas: [0.90, 0.98]
+  eps: 1.0e-8
+  weight_decay: 2.0e-6
+  amsgrad: false
+
+scheduler: null
+
+freeze_exclude_patterns: ["head"]
+
+train_sampler:
+  _target_: balr_lid.data.sampler.BalancedBatchSampler
+  batch_size: 70
+  balance_mode: batch
+  drop_last: true
+  seed: 42
+
+# Nothing to warm-start from for stage 1.
+checkpoint: null

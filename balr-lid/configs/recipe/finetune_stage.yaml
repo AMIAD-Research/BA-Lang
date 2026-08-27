@@ -1,0 +1,26 @@
+# Stage 2: finetune the SSL backbone.
+
+optimizer:
+  _target_: torch.optim.Adam
+  lr: 1.0e-5
+  betas: [0.90, 0.98]
+  eps: 1.0e-8
+  weight_decay: 2.0e-6
+  amsgrad: false
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.LinearLR
+  start_factor: 1.0
+  end_factor: 0.1 
+  total_iters: 10 
+
+freeze_exclude_patterns: ["backbone", "head"]
+
+train_sampler:
+  _target_: balr_lid.data.sampler.BalancedBatchSampler
+  batch_size: 32
+  balance_mode: epoch
+  drop_last: true
+  seed: 42
+
+checkpoint: ???

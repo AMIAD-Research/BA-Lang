@@ -1,0 +1,30 @@
+# Backbone + head architecture: MMS-1B (or any wav2vec2-family HF checkpoint)
+# + MHFA pooling + BA-Lang classifier.
+#
+# `num_layers`/`input_dim` must match the chosen backbone:
+#   wav2vec2-large / wavlm-large : num_layers=25, input_dim=1024
+#   mms-1b                       : num_layers=49, input_dim=1280
+backbone:
+  _target_: balr_lid.models.backbone.SSLBackbone
+  pretrained_model_name_or_path: ??? # e.g. "facebook/mms-1b" or a local directory
+  normalize: true
+
+head:
+  _target_: balr_lid.models.head.LanguageClassificationHead
+  num_layers: 49
+  input_dim: 1280
+  embed_dim: 256
+  num_classes: ${data.num_classes}
+  num_heads: 8
+  use_binary_encoder: true
+  binary_dim: 256
+  use_balr_head: true
+  # Structured ("nested"/Matryoshka) dropout,
+  # BA-LR head only — see balr_lid.models.head.LanguageClassificationHead's
+  # docstring. Off by default; enable with bit_dropout=true.
+  bit_dropout: false
+  dropout_law: uniform # uniform | geometric
+  dropout_n_min: 1
+  dropout_rho: 0.9
+  nested_dropout: false
+  dropout_seed: 1234

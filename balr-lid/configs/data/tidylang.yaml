@@ -1,0 +1,41 @@
+audio_root: ???
+manifest_dir: data/manifests
+num_classes: 35
+val_batch_size: 32
+num_workers: 8
+
+# Order defines the class index — must stay identical across every
+# run/checkpoint for this corpus. ISO 639-3 codes; see
+# scripts/build_tidylang_manifest.py's LANG_CODE_TO_ISO3 for the raw
+# corpus language-code mapping.
+language_list:
+  [
+    ara, bak, bel, ben, bul, cat, chv, cym, deu, div, ell, eng, fas, fra,
+    hin, hye, jpn, kat, lit, lug, mal, mar, nld, ori, pol, por, rus, tam,
+    tha, tuk, tur, uig, uzb, yue, zho,
+  ]
+
+train_dataset:
+  _target_: balr_lid.data.dataset.LanguageIdDataset
+  manifest_csv: ${data.manifest_dir}/tidylang-train.csv
+  audio_root: ${data.audio_root}
+  label_list: ${data.language_list}
+  segment_seconds: 3.0
+  random_crop: true
+  min_duration: 1.0
+
+val_dataset:
+  _target_: balr_lid.data.dataset.LanguageIdDataset
+  manifest_csv: ${data.manifest_dir}/tidylang-dev.csv
+  audio_root: ${data.audio_root}
+  label_list: ${data.language_list}
+  segment_seconds: 15.0
+  random_crop: false
+
+test_dataset:
+  _target_: balr_lid.data.dataset.LanguageIdDataset
+  manifest_csv: ${data.manifest_dir}/tidylang-test.csv
+  audio_root: ${data.audio_root}
+  label_list: ${data.language_list}
+  segment_seconds: 15.0
+  random_crop: false
