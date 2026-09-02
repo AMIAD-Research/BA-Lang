@@ -8,7 +8,7 @@ a learned Bernoulli model over a binarized embedding indicating presence/absence
 
 ## Related work : BA-Lang backend for LID
 
-The BA-Lang classification head (`use_balr_head=True`) scores each language by
+The BA-Lang classification head scores each language by
 the Bernoulli log-likelihood under per-class.
 Find more details about the BA-Lang scoring backend here : https://www.isca-archive.org/jep_2026/jelassi26_jep.html
 
