@@ -1,16 +1,15 @@
 """CSV manifest loading for language-identification datasets.
 
-A manifest is a flat CSV with one row per utterance and (at least) the
+A manifest is a flat CSV with one row per utterance and the
 columns:
 
     id           unique utterance identifier
     audio_path   path to the audio file, relative to `audio_root`
     language     ISO 639-3 language code (must appear in the corpus's
-                 label list, see configs/data/*.yaml)
+                 label list.
     duration     utterance duration in seconds
 
-Extra columns (speaker id, transcription, ...) are allowed and simply
-ignored. See docs/data_preparation.md for how to build one of these files.
+
 """
 from __future__ import annotations
 
@@ -31,20 +30,18 @@ def load_manifest(
 
     Args:
         csv_path: path to the manifest CSV.
-        audio_root: directory `audio_path` values are resolved against.
+        audio_root: directory `audio_path.
             The returned dataframe gets an extra `audio_abspath` column
             with the fully resolved path.
         min_duration: if set, drop rows shorter than this (seconds).
             Mirrors the minimum-duration filter used in the original
             training recipe to discard unusably short clips.
-        languages: if set, drop rows whose `language` is not in this list
-            (e.g. to sanity-check a manifest against a corpus's label list
-            before training).
+        languages.
 
     Returns:
         A validated `pandas.DataFrame`.
     """
-    df = pd.read_csv(csv_path)
+    df = pd.read_csv(csv_path, dtype={"id": str})
 
     missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
     if missing:

@@ -1,29 +1,19 @@
-"""Class-balanced batch sampler used by both stages of the training recipe.
+"""Class-balanced batch sampler.
 
-Two balance modes are supported, matching the two stages described in
-docs/recipe.md:
+Two balance modes are supported :
 
 - ``"batch"``: every single batch contains exactly the same number of
-  examples per class. Used for stage 1 (head-only training): batches are
-  small, and forcing per-batch balance keeps gradients from being dominated
-  by majority languages from the very first step.
+  examples per class. 
 
 - ``"epoch"``: a balanced pool of examples (equal total count per class) is
   drawn once per epoch, globally shuffled, then cut into batches of
   `batch_size`. Individual batches may end up with an uneven class mix, but
-  the epoch as a whole is not biased towards majority classes. Used for
-  stage 2 (SSL finetuning): batches are larger and the backbone is being
-  updated too, so epoch-level balance is enough and it produces a more
-  natural batch composition (helpful with batch-norm-like statistics inside
-  the backbone).
+  the epoch as a whole is not biased towards majority classes.
 
 - ``"unbalanced"``: plain shuffled iteration, no resampling. Useful as a
   baseline/debugging mode.
 
-Because `BalancedBatchSampler` keeps persistent per-class state (so that
-majority classes are cycled through across, not within, epochs) it must be
-told when a new epoch starts. Use `SamplerEpochCallback` for that when
-training with PyTorch Lightning.
+
 """
 from __future__ import annotations
 
@@ -52,7 +42,7 @@ class BalancedBatchSampler(Sampler):
             gets a disjoint shard of batches. Auto-detected from
             `torch.distributed` if not given.
         seed: base random seed; combined with the current epoch so that
-            shuffling is both reproducible and different every epoch.
+            shuffling is different every epoch.
     """
 
     def __init__(

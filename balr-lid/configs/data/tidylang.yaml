@@ -4,10 +4,8 @@ num_classes: 35
 val_batch_size: 32
 num_workers: 8
 
-# Order defines the class index — must stay identical across every
-# run/checkpoint for this corpus. ISO 639-3 codes; see
-# scripts/build_tidylang_manifest.py's LANG_CODE_TO_ISO3 for the raw
-# corpus language-code mapping.
+# Order defines the class index 
+
 language_list:
   [
     ara, bak, bel, ben, bul, cat, chv, cym, deu, div, ell, eng, fas, fra,

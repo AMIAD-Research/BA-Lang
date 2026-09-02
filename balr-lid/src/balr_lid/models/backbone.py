@@ -1,13 +1,6 @@
 """Self-supervised speech backbone wrapper (wav2vec2 / MMS family).
 
-Thin wrapper around a HuggingFace `Wav2Vec2Model` that adds:
-  - padding-aware input normalization (mean/variance computed only over
-    valid, non-padded samples, instead of the whole padded batch),
-  - always returns *every* hidden-layer output (`output_hidden_states=True`),
-    since the pooling head (see models/pooling.py) attends over all SSL
-    layers, not just the last one,
-  - the backbone's own reduced padding mask, mapping raw-audio padding to
-    feature-frame padding.
+
 
 Works with any HF checkpoint sharing the Wav2Vec2 architecture family,
 including MMS (e.g. "facebook/mms-1b") and wav2vec2-XLS-R.
@@ -33,12 +26,10 @@ class SSLBackbone(nn.Module):
 
     Args:
         pretrained_model_name_or_path: local directory or HF Hub id to load
-            weights + config from (e.g. "facebook/mms-1b", or a local
-            snapshot of it).
+            weights.
         normalize: zero-mean/unit-variance normalize the raw waveform before
             the backbone (standard wav2vec2 preprocessing), computed only
-            over non-padded samples so it stays correct for batched
-            variable-length audio.
+            over non-padded samples.
     """
 
     def __init__(self, pretrained_model_name_or_path: str, normalize: bool = True):

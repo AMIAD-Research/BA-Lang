@@ -13,12 +13,10 @@ from balr_lid.data.manifest import load_manifest
 class LanguageIdDataset(Dataset):
     """Loads audio + language label pairs described by a manifest CSV.
 
-    Training and validation use the same class with different `segment_seconds`
-    / `random_crop` settings (see configs/model/*.yaml):
+    Training and validation use the same class.
       - training: a short, randomly-positioned crop (e.g. 3-5s) so each epoch
         sees different sub-segments of long utterances.
-      - validation/test: a longer, fixed (center-cropped) window (e.g. 15s)
-        for stable, reproducible metrics.
+      - validation/test: a longer and fixed (center-cropped) window (e.g. 15s).
 
     Args:
         manifest_csv: path to a manifest CSV (see manifest.py).

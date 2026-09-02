@@ -1,0 +1,19 @@
+# Binary autoencoder (BAE) architecture -- see
+# balr_lid.models.binary_autoencoder.BinaryAutoencoder for the full
+# docstring (encoder/decoder shapes, straight-through binarization).
+_target_: balr_lid.models.binary_autoencoder.BinaryAutoencoder
+
+# input_dim must match the embeddings you're training on, e.g.:
+#   mms-1b MHFA embeddings          : 1280
+#   wav2vec2/WavLM-large embeddings : 1024
+input_dim: 1280
+# internal_dim is the length of the binary code (aka "binary_dim").
+internal_dim: 256
+
+# Structured ("nested"/Matryoshka inspired) dropout on the binary bottleneck.
+# Off by default.
+bit_dropout: false
+dropout_law: uniform # uniform | geometric
+dropout_n_min: 1
+dropout_rho: 0.9
+dropout_seed: 1234

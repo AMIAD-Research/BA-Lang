@@ -19,8 +19,8 @@ head:
   use_binary_encoder: true
   binary_dim: 256
   use_balr_head: true
-  # Structured ("nested"/Matryoshka) dropout,
-  # BA-LR head only — see balr_lid.models.head.LanguageClassificationHead's
+  # Structured ("nested"/Matryoshka inspired) dropout,
+  # BA-LR head only : see balr_lid.models.head.LanguageClassificationHead's
   # docstring. Off by default; enable with bit_dropout=true.
   bit_dropout: false
   dropout_law: uniform # uniform | geometric

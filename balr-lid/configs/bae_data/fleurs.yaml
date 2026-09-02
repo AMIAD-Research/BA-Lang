@@ -1,0 +1,25 @@
+# Manifests + precomputed-embedding files for BAE training on FLEURS.
+#
+# Manifests are the same CSVs used by `balr_lid.train` (see
+# configs/data/fleurs.yaml).
+
+manifest_dir: data/manifests
+
+train_embedding_file: ???
+val_embedding_file: ???
+test_embedding_file: ???
+
+train_dataset:
+  _target_: balr_lid.data.embedding_dataset.EmbeddingH5Dataset
+  embedding_file: ${bae_data.train_embedding_file}
+  manifest_csv: ${bae_data.manifest_dir}/fleurs-train.csv
+
+val_dataset:
+  _target_: balr_lid.data.embedding_dataset.EmbeddingH5Dataset
+  embedding_file: ${bae_data.val_embedding_file}
+  manifest_csv: ${bae_data.manifest_dir}/fleurs-dev.csv
+
+test_dataset:
+  _target_: balr_lid.data.embedding_dataset.EmbeddingH5Dataset
+  embedding_file: ${bae_data.test_embedding_file}
+  manifest_csv: ${bae_data.manifest_dir}/fleurs-dev.csv

@@ -2,26 +2,18 @@
 
 Two classifier variants are supported, selected by `use_balr_head`:
 
-- Cosine-softmax (default): a standard AM-Softmax-style classifier —
-  `logits = cosine_similarity(embedding, class_prototypes)`.
+- Cosine-softmax (default): a standard Softmax-style classifier.
 - BA-LR (Binary Attribute Likelihood Ratio) classifier (`use_balr_head=True`,
   requires `use_binary_encoder=True`): the embedding is first mapped to a
-  binary attribute vector, and each class is scored by the Bernoulli
-  log-likelihood of that binary vector under a per-class, per-attribute
-  learned probability `sigmoid(ba_logits[class, attribute])`:
+  binary vector, and each class is scored by the Bernoulli
+  log-likelihood under a per-class, per-attribute
+  learned probability :
 
       score(x, c) = sum_k  x_k * log p[c,k] + (1 - x_k) * log(1 - p[c,k])
 
-  This gives an interpretable, binarized embedding space alongside
-  classification (each attribute is a soft yes/no learned per language).
 
-  The BA-LR head optionally supports structured ("nested"/Matryoshka)
-  dropout on the binary attributes during training (`bit_dropout=True`):
-  per example, a cutoff `n` is drawn and only the leading `n` attributes
-  (out of `binary_dim`) are used, so the attributes end up importance-ordered
-  — the model works with any prefix of the embedding at inference, not just
-  the full `binary_dim`. See `LanguageClassificationHead`'s docstring for the
-  knobs (`dropout_law`, `dropout_rho`, `nested_dropout`, ...).
+  The BA-LR head optionally supports structured ("nested"/Matryoshka) inspired
+  dropout on the attributes during training (`bit_dropout=True`).
 """
 from __future__ import annotations
 
@@ -90,8 +82,7 @@ class LanguageClassificationHead(nn.Module):
               - `dropout_law="geometric"`: `n ~ Geometric(dropout_rho)`,
                 truncated to `[dropout_n_min, binary_dim]` — short prefixes
                 are drawn more often as `dropout_rho -> 0` (Matryoshka-style:
-                the leading attributes end up carrying the most information,
-                since they're kept active most often).
+                the leading attributes end up carrying the most information.
             Has no effect at eval time (`model.eval()`) — the full embedding
             is always used for validation/inference.
         dropout_law: `"uniform"` or `"geometric"`, see `bit_dropout` above.
@@ -105,8 +96,8 @@ class LanguageClassificationHead(nn.Module):
                 excluded from the score entirely, as if `binary_dim` were
                 truncated to `n` for that example.
               - `True` ("nested dropout"-style): dropped attributes are set
-                to 0 (observed absent) instead of excluded, and still count
-                in the score via their `log(1 - p)` term.
+                to 0 (observed absent) and still count
+                in the classification score.
         dropout_seed: seed for the RNG that draws the per-example cutoff `n`.
             A plain `random.Random`, kept separate from the global RNG so the
             drop pattern is reproducible independently of everything else
@@ -151,6 +142,8 @@ class LanguageClassificationHead(nn.Module):
         self.dropout_rho = dropout_rho
         self.nested_dropout = nested_dropout
         self._dropout_rng = random.Random(dropout_seed)
+
+        self._score_dim_range: Optional[tuple[int, int]] = None
 
         self.pooling = MultiHeadFactorizedAttentivePooling(
             num_layers=num_layers, input_dim=input_dim, latent_dim=embed_dim, num_heads=num_heads
@@ -208,16 +201,49 @@ class LanguageClassificationHead(nn.Module):
         idx = torch.arange(self.ba_logits.shape[1], device=device).unsqueeze(0)
         return (idx < n_active.unsqueeze(1)).float()
 
+    def set_score_dim_range(self, start: Optional[int], end: Optional[int]) -> None:
+        """Restrict `_balr_logits` scoring to attributes `[start, end)`.
+
+        For ablations / interpretability checks — e.g. scoring with only the
+        leading `k` attributes (`start=0, end=k`) or only the trailing `k`
+        (`start=binary_dim - k, end=binary_dim`). Attributes outside the
+        range are excluded from the score entirely (same "Matryoshka"-style
+        truncation `bit_dropout` uses during training — see the class
+        docstring).
+
+        Pass `start=None, end=None` to clear the restriction and go back to
+        scoring the full `binary_dim` embedding (the default).
+        """
+        if start is None and end is None:
+            self._score_dim_range = None
+            return
+        if not self.use_balr_head:
+            raise ValueError("set_score_dim_range requires use_balr_head=True")
+        binary_dim = self.ba_logits.shape[1]
+        start = 0 if start is None else start
+        end = binary_dim if end is None else end
+        if not (0 <= start < end <= binary_dim):
+            raise ValueError(f"invalid dim range [{start}, {end}) for binary_dim={binary_dim}")
+        self._score_dim_range = (start, end)
+
     def _balr_logits(self, x: torch.Tensor) -> torch.Tensor:
         """Bernoulli log-likelihood score of binary embedding `x` under each class.
 
         If `bit_dropout` is on and the head is training, a structured dropout
         mask (see the class docstring) zeroes out a per-example suffix of `x`
-        before scoring.
+        before scoring. If `set_score_dim_range` was called, that fixed range
+        takes priority over both the full embedding and `bit_dropout`.
         """
         x = x.float()
         log_p = F.logsigmoid(self.ba_logits)
         log_1_minus_p = F.logsigmoid(-self.ba_logits)
+
+        if self._score_dim_range is not None:
+            start, end = self._score_dim_range
+            mask = torch.zeros(x.shape[-1], device=x.device)
+            mask[start:end] = 1.0
+            x_masked = x * mask
+            return x_masked @ (log_p - log_1_minus_p).T + mask @ log_1_minus_p.T
 
         if not (self.training and self.bit_dropout):
             return x @ log_p.T + (1.0 - x) @ log_1_minus_p.T  # (B, num_classes)

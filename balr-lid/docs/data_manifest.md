@@ -101,6 +101,13 @@ python scripts/build_tidylang_manifest.py train \
     --output-dir data/manifests
 ```
 
+The extracted archive actually splits speakers across two subdirectories,
+`TidyVoiceX_Train/` and `TidyVoiceX_Dev/`, independently of `manifest.txt`'s
+own `split_flag` column — a given row's audio file can be under either one.
+The script searches both automatically (`--subdirs`, default
+`TidyVoiceX_Train,TidyVoiceX_Dev`); pass `--subdirs ""` if your corpus is
+laid out flat instead (`corpus_root/<speaker>/...` directly).
+
 **Eval** — `TidyVoiceX2_ASV`, alongside `tl26_lid.txt`:
 
 ```

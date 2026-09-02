@@ -4,7 +4,7 @@ num_classes: 102
 val_batch_size: 32
 num_workers: 8
 
-# Official FLEURS language list (ISO 639-3 codes), order defines the class index.
+# FLEURS language list (ISO 639-3 codes), order defines the class index.
 language_list:
   [
     afr, amh, ara, asm, ast, aze, bel, ben, bos, bul, cat, ceb, ces, ckb, cmn,

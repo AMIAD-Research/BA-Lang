@@ -9,8 +9,7 @@ Usage:
         output_dir=exp/fleurs-stage2 arch.backbone.pretrained_model_name_or_path=facebook/mms-1b
 
 Resumes automatically from `<output_dir>/checkpoints/last.ckpt` if it
-already exists, so a run interrupted mid-training (e.g. a SLURM job hitting
-its time limit) can simply be resubmitted unchanged.
+already exists.
 """
 from __future__ import annotations
 
@@ -25,9 +24,7 @@ from omegaconf import DictConfig, OmegaConf
 
 logger = logging.getLogger(__name__)
 
-# Lightning's own "srun is available but not used" hint (PossibleUserWarning)
-# — irrelevant here, this repo's sbatch templates never launch training
-# through `srun`.
+
 warnings.filterwarnings("ignore", message=r".*srun.*")
 # Lightning's "GPU available / TPU available / HPU available" accelerator
 # banner (rank_zero_info, logged at INFO level) — replaced below by a single
@@ -47,10 +44,7 @@ warnings.filterwarnings("ignore", message=r".*torchaudio\.load_with_torchcodec.*
 def main(cfg: DictConfig) -> None:
     logger.info("Resolved config:\n%s", OmegaConf.to_yaml(cfg, resolve=True))
 
-    # Silences transformers' from_pretrained() load report (e.g. the
-    # "lm_head.bias/weight UNEXPECTED" table) — expected noise every run
-    # since we always load a full ASR/CTC checkpoint (with a head we don't
-    # use) into the bare Wav2Vec2Model backbone.
+    # Silences transformers' from_pretrained() load report
     transformers.logging.set_verbosity_error()
 
     seed_everything(cfg.seed, workers=True)

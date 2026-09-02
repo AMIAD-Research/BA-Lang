@@ -1,0 +1,71 @@
+# Root Hydra config for the BAE (binary autoencoder) training stage.
+# Composes a corpus's embedding files (`bae_data`) and a BAE architecture
+# (`bae_model`). Independent from configs/train.yaml: this stage trains on
+# precomputed embeddings.
+#
+# Typical invocation:
+#   python -m balr_lid.train_bae \
+#       bae_data=fleurs output_dir=exp/fleurs-bae \
+#       bae_data.train_embedding_file=/path/to/train_embeddings.h5 \
+#       bae_data.val_embedding_file=/path/to/dev_embeddings.h5 \
+#       bae_data.test_embedding_file=/path/to/dev_embeddings.h5 \
+#       bae_model.input_dim=1280 bae_model.internal_dim=320
+#
+# See docs/bae.md.
+defaults:
+  - bae_data: fleurs
+  - bae_model: default
+  - _self_
+
+seed: 42
+output_dir: ???
+
+datamodule:
+  _target_: balr_lid.data.bae_datamodule.BAEDataModule
+  _recursive_: false
+  train_dataset: ${bae_data.train_dataset}
+  val_dataset: ${bae_data.val_dataset}
+  test_dataset: ${bae_data.test_dataset}
+  batch_size: 640
+  val_batch_size: 640
+  num_workers: 8
+
+model:
+  _target_: balr_lid.models.bae_model.BinaryAutoencoderModel
+  _recursive_: false
+  autoencoder: ${bae_model}
+  optimizer:
+    _target_: torch.optim.Adam
+    lr: 1.0e-3
+  normalize_input: true
+
+trainer:
+  _target_: lightning.pytorch.Trainer
+  accelerator: gpu
+  devices: 1
+  num_nodes: 1
+  max_epochs: 1000
+  num_sanity_val_steps: 0
+  enable_model_summary: false
+  default_root_dir: ${output_dir}
+  check_val_every_n_epoch: 1
+  logger:
+    _target_: lightning.pytorch.loggers.TensorBoardLogger
+    save_dir: ${output_dir}
+    name: ""
+    version: "logs"
+  callbacks:
+    - _target_: lightning.pytorch.callbacks.ModelCheckpoint
+      dirpath: ${output_dir}/checkpoints
+      filename: "best-{epoch:04d}-{val_loss:.6f}"
+      monitor: val_loss
+      mode: min
+      save_top_k: 3
+      save_last: true
+      every_n_epochs: 1
+
+hydra:
+  run:
+    dir: ${output_dir}
+  job:
+    chdir: false

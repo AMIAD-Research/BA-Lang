@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build balr-lid manifest CSVs for the Tidylang corpus.
 
-Raw layout, both the train corpus and the eval corpus:
+Raw layout :
 
   <corpus_root>/
     id010001/
@@ -15,23 +15,20 @@ Raw layout, both the train corpus and the eval corpus:
       ...
 
 `train` subcommand — TidyVoiceX_ASV, alongside a `manifest.txt` with one row
-per utterance, whitespace-separated, no header:
+per utterance, whitespace-separated :
 
     <split_flag>  <speaker>/<lang>/<file>.wav  <lang_code>
 
-`split_flag == 1` marks the train pool (the only rows this script uses; any
-other flag value is some other split of the raw corpus, not touched here).
-Since there's no held-out dev split upstream, this script draws one itself:
-90/10 train/dev, stratified per language so rare languages don't disappear
-from dev.
+`split_flag == 1` marks the train pool (the only rows this script uses).
+This script draws a dev split :
+90/10 train/dev.
 
-`eval` subcommand — TidyVoiceX2_ASV, alongside `tl26_lid.txt`, same idea but
-two columns (no split flag — the whole file is the eval set):
+
+`eval` subcommand — TidyVoiceX2_ASV, alongside `tl26_lid.txt`, has
+two columns :
 
     <speaker>/<lang>/<file>.wav  <lang_code>
 
-Neither raw manifest carries a duration column, so `duration` is read
-directly off each audio file with `soundfile`.
 
 Writes data/manifests/tidylang-{train,dev,test}.csv in the format
 `balr_lid.data.manifest.load_manifest` expects (id,audio_path,language,
@@ -61,6 +58,13 @@ import soundfile as sf
 
 DEFAULT_DEV_FRACTION = 0.1
 DEFAULT_SEED = 42
+
+
+DEFAULT_TRAIN_SUBDIRS = ["TidyVoiceX_Train", "TidyVoiceX_Dev"]
+
+
+def parse_subdirs(value: str) -> list[str]:
+    return [s for s in value.split(",") if s] if value else []
 
 
 class ProgressBar:
@@ -103,13 +107,8 @@ class ProgressBar:
         sys.stdout.flush()
 
 
-# Raw codes observed in TidyVoiceX_ASV/manifest.txt and
-# TidyVoiceX2_ASV/tl26_lid.txt are mostly ISO 639-1 (`en`, `cy`, `de`, `el`,
-# `nl`, `tr`, `ta`, ...) plus a BCP-47-style `zh-CN` for Mandarin. Languages
-# with no ISO 639-1 code (Upper Sorbian, Cantonese) are mapped from their own
-# ISO 639-3 code, in case the raw corpus directory names already use it.
-#
-# This is deliberately a superset of TARGET_LANGUAGES below: the raw corpus
+
+# This is a superset of TARGET_LANGUAGES below: the raw corpus
 # has more languages than we train on (e.g. abk, hau, hsb, mkd, yor), and
 # rows for those are filtered out in build_rows rather than raising — only a
 # code that's not in this dict at all (a real mapping gap) is fatal.
@@ -168,20 +167,50 @@ assert TARGET_LANGUAGES <= set(LANG_CODE_TO_ISO3.values()), "TARGET_LANGUAGES ha
 
 
 def resolve_language(raw_code: str) -> str | None:
-    return LANG_CODE_TO_ISO3.get(raw_code.strip().lower())
+    """Look up `raw_code` in LANG_CODE_TO_ISO3.
+
+    Tries the full code first (needed for e.g. `zh-hk` vs `zh-cn`, which
+    resolve to *different* target languages, yue vs zho). Falls back to just
+    the primary subtag (`hy-am` -> `hy`) for any other BCP-47-style
+    `<lang>-<region>` code the corpus uses — the region doesn't change the
+    target language for anything except zh, and that's already covered by
+    the explicit zh-* entries matched above.
+    """
+    code = raw_code.strip().lower()
+    if code in LANG_CODE_TO_ISO3:
+        return LANG_CODE_TO_ISO3[code]
+    primary_subtag = code.split("-", 1)[0]
+    return LANG_CODE_TO_ISO3.get(primary_subtag)
+
+
+def resolve_audio_path(corpus_root: Path, audio_path: str, subdirs: list[str]) -> Path | None:
+    """Find `audio_path` under `corpus_root`, trying `corpus_root/audio_path`
+    first, then `corpus_root/<subdir>/audio_path` for each of `subdirs` in
+    order. Returns the path relative to `corpus_root` that actually exists
+    (this is what gets written to the manifest CSV), or None if none do.
+    """
+    if (corpus_root / audio_path).is_file():
+        return Path(audio_path)
+    for subdir in subdirs:
+        candidate = Path(subdir) / audio_path
+        if (corpus_root / candidate).is_file():
+            return candidate
+    return None
 
 
 def build_rows(
     manifest_lines: list[tuple[str, str]],
     corpus_root: Path,
     split_name: str,
+    subdirs: list[str] = (),
 ) -> list[dict]:
     """Turn (audio_path, raw_lang_code) pairs into manifest rows.
 
     Resolves each raw language code, drops rows outside TARGET_LANGUAGES
-    (in-corpus but not trained on), checks the audio file exists, and reads
-    its duration. Rows with a completely unrecognized language code or
-    missing/unreadable audio are skipped with a warning.
+    (in-corpus but not trained on), locates the audio file (see
+    `resolve_audio_path`) and reads its duration. Rows with a completely
+    unrecognized language code or missing/unreadable audio are skipped with
+    a warning.
     """
     unknown_codes: set[str] = set()
     n_out_of_scope = 0
@@ -202,10 +231,12 @@ def build_rows(
             n_out_of_scope += 1
             continue
 
-        audio_abspath = corpus_root / audio_path
-        if not audio_abspath.is_file():
+        resolved_path = resolve_audio_path(corpus_root, audio_path, subdirs)
+        if resolved_path is None:
             n_missing_audio += 1
             continue
+        audio_path = str(resolved_path)
+        audio_abspath = corpus_root / resolved_path
 
         try:
             info = sf.info(str(audio_abspath))
@@ -237,7 +268,8 @@ def build_rows(
     if n_out_of_scope:
         print(f"[info] {split_name}: {n_out_of_scope} row(s) skipped, language not in TARGET_LANGUAGES")
     if n_missing_audio:
-        print(f"[warn] {split_name}: {n_missing_audio} row(s) skipped, audio file not found under {corpus_root}")
+        tried = [str(corpus_root)] + [str(corpus_root / s) for s in subdirs]
+        print(f"[warn] {split_name}: {n_missing_audio} row(s) skipped, audio file not found under any of {tried}")
     if n_unreadable:
         print(f"[warn] {split_name}: {n_unreadable} row(s) skipped, audio file unreadable")
 
@@ -321,7 +353,7 @@ def read_manifest_rows(manifest_file: Path, split_flag: str | None) -> list[tupl
 
 
 def cmd_train(args: argparse.Namespace) -> None:
-    manifest_file = args.manifest_file or (args.corpus_root / "manifest.txt")
+    manifest_file = args.manifest_file or (args.corpus_root / "training_manifest.txt")
     if not manifest_file.is_file():
         raise SystemExit(f"manifest file not found: {manifest_file}")
 
@@ -329,7 +361,7 @@ def cmd_train(args: argparse.Namespace) -> None:
     if not pairs:
         raise SystemExit(f"no split_flag==1 rows found in {manifest_file}")
 
-    rows = build_rows(pairs, args.corpus_root, split_name="train_pool")
+    rows = build_rows(pairs, args.corpus_root, split_name="train_pool", subdirs=args.subdirs)
     train_rows, dev_rows = split_train_dev(rows, args.dev_fraction, args.seed)
 
     write_csv(train_rows, args.output_dir / "tidylang-train.csv")
@@ -345,7 +377,7 @@ def cmd_eval(args: argparse.Namespace) -> None:
     if not pairs:
         raise SystemExit(f"no rows found in {manifest_file}")
 
-    rows = build_rows(pairs, args.corpus_root, split_name="test")
+    rows = build_rows(pairs, args.corpus_root, split_name="test", subdirs=args.subdirs)
     write_csv(rows, args.output_dir / "tidylang-test.csv")
 
 
@@ -361,12 +393,23 @@ def parse_args() -> argparse.Namespace:
     p_train.add_argument("--output-dir", default=Path("data/manifests"), type=Path, help="Default: data/manifests")
     p_train.add_argument("--dev-fraction", default=DEFAULT_DEV_FRACTION, type=float, help="Default: 0.1")
     p_train.add_argument("--seed", default=DEFAULT_SEED, type=int, help="Default: 42")
+    p_train.add_argument(
+        "--subdirs", type=parse_subdirs, default=DEFAULT_TRAIN_SUBDIRS,
+        help="Comma-separated subdirectories of --corpus-root to also search for each "
+             f"audio file (default: {','.join(DEFAULT_TRAIN_SUBDIRS)}; pass an empty "
+             "string for a flat corpus_root/<speaker>/... layout)",
+    )
     p_train.set_defaults(func=cmd_train)
 
     p_eval = sub.add_parser("eval", help="Build tidylang-test.csv from TidyVoiceX2_ASV")
     p_eval.add_argument("--corpus-root", required=True, type=Path, help="TidyVoiceX2_ASV root directory")
     p_eval.add_argument("--manifest-file", type=Path, default=None, help="Default: <corpus-root>/tl26_lid.txt")
     p_eval.add_argument("--output-dir", default=Path("data/manifests"), type=Path, help="Default: data/manifests")
+    p_eval.add_argument(
+        "--subdirs", type=parse_subdirs, default=[],
+        help="Comma-separated subdirectories of --corpus-root to also search for each "
+             "audio file (default: none, flat corpus_root/<speaker>/... layout)",
+    )
     p_eval.set_defaults(func=cmd_eval)
 
     return p.parse_args()

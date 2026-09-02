@@ -1,14 +1,13 @@
 """Utilities for selectively freezing/unfreezing model parameters by name.
 
-The two-stage training recipe reuses the exact same model and forward pass
-for both stages; the only difference is *which parameters are trainable*:
+There are two stages in the training recipe :
 
     stage 1 (head only):      freeze_exclude_patterns: ["head"]
     stage 2 (backbone+head):  freeze_exclude_patterns: ["backbone", "head"]
 
 A parameter stays trainable (`requires_grad=True`) if its fully-qualified
 name matches at least one of `exclude_patterns` (regex search, not full
-match); every other parameter is frozen. See docs/recipe.md.
+match); every other parameter is frozen.
 """
 from __future__ import annotations
 

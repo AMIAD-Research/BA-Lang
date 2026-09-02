@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build balr-lid manifest CSVs from a raw FLEURS-style corpus layout.
+"""Build balr-lid manifest CSVs from a raw FLEURS corpus.
 
 Expects a single root directory, one subdirectory per language locale, each
 holding its own tsv metadata and its own audio subtree:
@@ -21,19 +21,14 @@ holding its own tsv metadata and its own audio subtree:
         ...
 
 Each *.tsv is the raw FLEURS per-utterance metadata, tab-separated, no
-header, 7 columns:
+header :
     id  filename  raw_transcription  normalized_transcription  phonemic  num_samples  gender
 
 Writes data/manifests/fleurs-{train,dev,test}.csv in the format
 `balr_lid.data.manifest.load_manifest` expects (id,audio_path,language,
-duration) — no changes to the dataset/dataloader code are needed, only this
-manifest. `duration` is derived from `num_samples / sample_rate` (default
-16kHz) rather than re-reading every audio file, since FLEURS metadata already
-carries the exact frame count.
+duration).
 
-`audio_path` in the generated manifest is written relative to `corpus_root`
-(e.g. `ha_ng/audio/train/<filename>.wav`), so at training time pass
-`data.audio_root=<corpus_root>`.
+`audio_path` in the generated manifest is written relative to `corpus_root`.
 
 Usage:
     python scripts/build_fleurs_manifest.py \
@@ -52,10 +47,7 @@ import soundfile as sf
 
 SPLITS = ("train", "dev", "test")
 
-# Some rows contain an unescaped literal newline inside a transcription
-# field, which merges with following lines into one oversized field and
-# trips csv's default 128KB-per-field limit; raise it well above anything
-# a real utterance transcription could reach.
+
 try:
     csv.field_size_limit(sys.maxsize)
 except OverflowError:
@@ -101,10 +93,7 @@ class ProgressBar:
         sys.stdout.write("\n")
         sys.stdout.flush()
 
-# google/fleurs locale directory name -> ISO 639-3 code used in
-# configs/data/fleurs.yaml's `language_list`. Keys/values mirror that file
-# 1:1 (102 languages); extend this dict if your corpus uses different
-# locale directory names.
+
 LOCALE_TO_ISO3 = {
     "af_za": "afr", "am_et": "amh", "ar_eg": "ara", "as_in": "asm",
     "ast_es": "ast", "az_az": "aze", "be_by": "bel", "bn_in": "ben",
@@ -184,9 +173,7 @@ def main() -> None:
             f"code used in configs/data/fleurs.yaml)."
         )
 
-    # Cross-check against the full 102-language list: a locale present only as
-    # a `.tar.gz` archive (not yet extracted) has no directory at all, and
-    # would otherwise be silently skipped without any warning.
+ 
     found_locales = {d.name for d in lang_dirs}
     missing_locales = sorted(set(LOCALE_TO_ISO3) - found_locales)
     if missing_locales:
@@ -227,22 +214,14 @@ def main() -> None:
             iso3 = LOCALE_TO_ISO3[lang_dir.name]
 
             with open(tsv_path, newline="", encoding="utf-8") as f:
-                # QUOTE_NONE: this is a raw tab-separated file, not a quoted CSV —
-                # a stray `"` in a transcription must stay a literal character,
-                # not trigger csv's quoted-field parsing (which otherwise
-                # swallows tabs/newlines across multiple physical lines into a
-                # single merged row, undercounting rows against total_lines).
+        
                 for lineno, line in enumerate(
                     csv.reader(f, delimiter="\t", quoting=csv.QUOTE_NONE), start=1
                 ):
                     bar.update(1)
                     if not line:
                         continue
-                    # id and filename are always the first two columns; num_samples
-                    # and gender are always the last two. The transcription columns
-                    # in between can occasionally split unexpectedly (e.g. a raw
-                    # literal newline inside a sentence), so anchor on both ends
-                    # instead of fixed positional indices.
+             
                     if len(line) < 2:
                         print(f"\n[warn] {tsv_path}:{lineno}: malformed row (only {len(line)} field(s)), no filename, skipping")
                         n_unrecoverable += 1
@@ -266,10 +245,7 @@ def main() -> None:
                             n_missing_audio += 1
                             continue
                     else:
-                        # tsv row is corrupted (e.g. an unescaped literal newline
-                        # merged two columns together) — recover the utterance by
-                        # reading the real duration off the audio file instead of
-                        # dropping it, as long as that audio file is itself fine.
+
                         try:
                             info = sf.info(str(audio_abspath))
                             duration = info.frames / info.samplerate

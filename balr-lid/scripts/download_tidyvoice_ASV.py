@@ -4,8 +4,7 @@ Mozilla Data Collective as a single .tar.gz archive.
 
 Requires an API key: make one at
 https://datacollective.mozillafoundation.org/api-reference, then set it as
-an environment variable (never hardcode it in this file or a command line
-that gets logged/committed):
+an environment variable :
 
     export API_KEY=<your key>
 

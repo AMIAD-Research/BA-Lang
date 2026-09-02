@@ -1,4 +1,4 @@
-"""LightningDataModule wiring `LanguageIdDataset` + `BalancedBatchSampler`.
+"""LightningDataModule wiring `EmbeddingH5Dataset` for BAE training.
 
 """
 from __future__ import annotations
@@ -10,24 +10,22 @@ from lightning.pytorch import LightningDataModule
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 
-from balr_lid.data.dataset import collate_fn
 
-
-class LIDDataModule(LightningDataModule):
+class BAEDataModule(LightningDataModule):
     def __init__(
         self,
         train_dataset: DictConfig,
         val_dataset: DictConfig,
-        train_sampler: DictConfig,
         test_dataset: Optional[DictConfig] = None,
-        val_batch_size: int = 32,
+        batch_size: int = 256,
+        val_batch_size: int = 256,
         num_workers: int = 8,
     ):
         super().__init__()
         self._train_dataset_cfg = train_dataset
         self._val_dataset_cfg = val_dataset
         self._test_dataset_cfg = test_dataset
-        self._train_sampler_cfg = train_sampler
+        self._batch_size = batch_size
         self._val_batch_size = val_batch_size
         self._num_workers = num_workers
 
@@ -44,11 +42,11 @@ class LIDDataModule(LightningDataModule):
             self.test_dataset = hydra.utils.instantiate(self._test_dataset_cfg)
 
     def train_dataloader(self) -> DataLoader:
-        sampler = hydra.utils.instantiate(self._train_sampler_cfg, labels=self.train_dataset.labels)
         return DataLoader(
             self.train_dataset,
-            batch_sampler=sampler,
-            collate_fn=collate_fn,
+            batch_size=self._batch_size,
+            shuffle=True,
+            drop_last=True,
             num_workers=self._num_workers,
             pin_memory=True,
             persistent_workers=self._num_workers > 0,
@@ -59,7 +57,6 @@ class LIDDataModule(LightningDataModule):
             self.val_dataset,
             batch_size=self._val_batch_size,
             shuffle=False,
-            collate_fn=collate_fn,
             num_workers=self._num_workers,
             pin_memory=True,
             persistent_workers=self._num_workers > 0,
@@ -72,7 +69,6 @@ class LIDDataModule(LightningDataModule):
             self.test_dataset,
             batch_size=self._val_batch_size,
             shuffle=False,
-            collate_fn=collate_fn,
             num_workers=self._num_workers,
             pin_memory=True,
         )

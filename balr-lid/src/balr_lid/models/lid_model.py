@@ -1,7 +1,6 @@
 """LightningModule implementing the two-stage LID training recipe.
 
-Both stages (head-only training and full SSL finetuning, see docs/recipe.md)
-use this exact same module and forward pass — `backbone -> stack all SSL
+Both stages use this exact same module and forward pass — `backbone -> stack all SSL
 layers -> MHFA pooling+classifier head -> cross-entropy`. What changes
 between stages is purely config: which parameters are trainable
 (`freeze_exclude_patterns`, see balr_lid/optim.py), the learning-rate
@@ -31,7 +30,7 @@ class LanguageIdentificationModel(LightningModule):
         freeze_exclude_patterns: regex patterns selecting which parameters stay
             trainable; see `balr_lid.optim.freeze_by_pattern`.
         backbone_checkpoint: optional path to a backbone-only state_dict to
-            load before training (e.g. to start from a public SSL checkpoint
+            load before training (e.g. to start from a SSL checkpoint
             saved outside the HF format).
         checkpoint: optional path to a full Lightning checkpoint (backbone +
             head) to warm-start from — this is how stage 2 continues from
@@ -49,29 +48,17 @@ class LanguageIdentificationModel(LightningModule):
         checkpoint: Optional[str] = None,
     ):
         super().__init__()
-        # `backbone_checkpoint`/`checkpoint` are one-shot "warm start from this
-        # path" instructions for the run that constructs this module; they are
-        # deliberately excluded from the saved hparams so that later calling
-        # `load_from_checkpoint(...)` on *this* run's own checkpoint doesn't
-        # try to re-resolve a (possibly no-longer-existing) upstream path.
+
         self.save_hyperparameters(logger=False, ignore=["backbone_checkpoint", "checkpoint"])
 
         self._optimizer_cfg = optimizer
         self._scheduler_cfg = scheduler
         self._freeze_exclude_patterns = freeze_exclude_patterns
 
-        # Built eagerly (not deferred to `setup()`) so that
-        # `LanguageIdentificationModel.load_from_checkpoint(...)` — which
-        # instantiates the module and loads its state_dict without going
-        # through the Lightning Trainer / `setup()` hook — has submodules to
-        # load weights into.
         self.backbone = hydra.utils.instantiate(backbone)
         self.head = hydra.utils.instantiate(head)
 
         if backbone_checkpoint:
-            # weights_only=False: these are our own Lightning checkpoints
-            # (may embed OmegaConf DictConfig objects in hparams), not
-            # arbitrary untrusted files.
             state_dict = torch.load(backbone_checkpoint, map_location="cpu", weights_only=False)
             self.backbone.load_state_dict(state_dict, strict=False)
 

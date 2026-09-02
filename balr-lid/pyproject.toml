@@ -1,7 +1,7 @@
 [project]
 name = "balr-lid"
 version = "0.1.0"
-description = "Two-stage SSL finetuning recipe for spoken language identification (frozen-head training, then full SSL finetuning), with an optional BA-LR binarized classification head."
+description = "SSL finetuning recipe for spoken language identification with an optional BA-LR classification head."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -31,4 +31,3 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
-testpaths = ["tests"]
