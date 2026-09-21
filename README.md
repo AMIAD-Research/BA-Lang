@@ -2,15 +2,20 @@
 
 A training recipe for **spoken language identification (LID)**:
 finetune a self-supervised speech backbone with an
-MHFA head. Includes an optional **BA-LR** (Binary
-Attribute Likelihood Ratio) classification head, which scores languages via
+MHFA head. Includes an optional **BA-Lang** classification head, which scores languages via
 a learned Bernoulli model over a binarized embedding indicating presence/absence of interpretable language attributes.
+BA-Lang is derived from the BA-LR model.
+## Checkpoints
+
+Pretrained checkpoints are available on HuggingFace:
+[![Hugging Face](https://huggingface.co/datasets/huggingface/badges/resolve/main/model-on-hf-md.svg)](https://huggingface.co/AMIAD/BA-Lang/blob/main/README.md)
 
 ## Related work : BA-Lang backend for LID
 
 The BA-Lang classification head scores each language by
 the Bernoulli log-likelihood under per-class.
 Find more details about the BA-Lang scoring backend here : https://www.isca-archive.org/jep_2026/jelassi26_jep.html
+The BA-LR (Binary Attribute Likelihood Ratio) model : https://www.isca-archive.org/interspeech_2024/benamor24_interspeech.html
 
 ## Systems Architecture
 
@@ -26,7 +31,7 @@ raw audio (16kHz)
       │
       ▼
  LanguageClassification
-   ├─ cosine classifier , or
+   ├─ Linear , or
    └─ BA-Lang : BinaryEncoder → per-class Bernoulli log-likelihood scoring
       │
       ▼
@@ -219,6 +224,7 @@ python scripts/compute_accuracy.py \
 ## Repository structure
 
 ```
+appendix/         additional figures about the attributes control strategies
 configs/          Hydra configs (data / model architecture / recipe / bae_data / bae_model)
 src/balr_lid/      library code (data loading, model, training, inference)
 scripts/           SLURM job templates, per corpus and stage
