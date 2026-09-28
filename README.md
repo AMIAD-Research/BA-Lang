@@ -10,11 +10,12 @@ BA-Lang is derived from the BA-LR model.
 Pretrained checkpoints are available on HuggingFace:
 [![Hugging Face](https://huggingface.co/datasets/huggingface/badges/resolve/main/model-on-hf-md.svg)](https://huggingface.co/AMIAD/BA-Lang/blob/main/README.md)
 
-## Related work : BA-Lang backend for LID
+## Related work : BA-Lang scoring backend for LID
 
 The BA-Lang classification head scores each language by
 the Bernoulli log-likelihood under per-class.
-Find more details about the BA-Lang scoring backend here : https://www.isca-archive.org/jep_2026/jelassi26_jep.html , https://hal.science/hal-05760636v1 
+Find more details about the BA-Lang scoring backend (derived from the BA-LR model) here : https://www.isca-archive.org/jep_2026/jelassi26_jep.html , https://hal.science/hal-05760636v1 
+
 The BA-LR (Binary Attribute Likelihood Ratio) model : https://www.isca-archive.org/interspeech_2024/benamor24_interspeech.html
 
 ## Systems Architecture
@@ -197,7 +198,7 @@ python -m balr_lid.infer_bae \
     --h5-out exp/fleurs-bae/binary/train_embeddings.h5
 ```
 
-## BA-Lang backend
+## BA-Lang scoring backend
 
 A closed-form Bernoulli classifier. See
 [docs/ba_lang_backend.md](docs/ba_lang_backend.md).
