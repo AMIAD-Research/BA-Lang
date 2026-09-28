@@ -14,7 +14,7 @@ Pretrained checkpoints are available on HuggingFace:
 
 The BA-Lang classification head scores each language by
 the Bernoulli log-likelihood under per-class.
-Find more details about the BA-Lang scoring backend here : https://www.isca-archive.org/jep_2026/jelassi26_jep.html
+Find more details about the BA-Lang scoring backend here : https://www.isca-archive.org/jep_2026/jelassi26_jep.html , https://hal.science/hal-05760636v1 
 The BA-LR (Binary Attribute Likelihood Ratio) model : https://www.isca-archive.org/interspeech_2024/benamor24_interspeech.html
 
 ## Systems Architecture
